@@ -1,4 +1,4 @@
-![Harmony ONE Payment Gateway](docs/harmony-one.png)
+![Harmony ONE Payment Gateway](https://github.com/sekmet/harmonypay-gateway/raw/main/docs/harmony-one.png)
 
 # HarmonyPay - Accept Harmony ONE and HRC20 tokens
 
