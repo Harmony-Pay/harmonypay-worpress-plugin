@@ -17,6 +17,7 @@ class Currency
 	**/
 	public function convert( $currency, $amount )
 	{
+
 		// The exchange rates are stored in the account.
 		$account = HarmonyPay()->api()->account();
 
@@ -25,6 +26,10 @@ class Currency
 			return $amount;
 
 		$amount = static::normalize_amount( $amount );
+
+
+		if ($amount == 0)
+			return '0';
 
 		// Convert to USD.
 		if ( $currency != 'USD' )
@@ -42,7 +47,7 @@ class Currency
 		else {
 			$usd = $amount;
 		}
-		
+
 		$cryptocurrency_amount = $account->get_virtual_exchange_rate( $this->get_id() );
 		//HarmonyPay()->debug('currency : %s - %s - %s - %s', $currency, $usd, $cryptocurrency_amount, $this->get_id());
 		$cryptocurrency_amount = $usd * $cryptocurrency_amount;

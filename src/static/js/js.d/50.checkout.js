@@ -6,7 +6,7 @@ var harmonypay_checkout_javascript = function( data )
 	$$.$online_pay_box = $( '.hrp_online_pay_box', $$.$div );
 	$$.$payment_buttons = $( '<div class="payment_buttons">' );
 	$$.harmonypay_checkout_data = false;
-
+	$$.harmonypay_network_mode = 'testnet'
 	/**
 		@brief		Show the browser link button.
 		@since		2018-12-14 22:59:03
@@ -38,13 +38,15 @@ var harmonypay_checkout_javascript = function( data )
 
 			var harmonypay_checkout_data = $$.extract_data( $harmonypay_checkout_data );
 
-			console.log(harmonypay_checkout_data);
+			
+			$$.harmonypay_network_mode = harmonypay_checkout_data.supports.network_mode;
 
 			if ( harmonypay_checkout_data[ 'paid' ] === undefined )
 				return;
 
 			if ( harmonypay_checkout_data[ 'paid' ] === false )
 			{
+				console.log($$.harmonypay_network_mode, harmonypay_checkout_data);
 				document.location = url;
 				return;
 			}
@@ -76,7 +78,7 @@ var harmonypay_checkout_javascript = function( data )
 			return;
 		$$.$div.addClass( 'harmonypay' );
 		$$.harmonypay_checkout_data = $$.extract_data( $( '#harmonypay_checkout_data' ) );
-		console.log( 'HarmonyPay: Checkout data', $$.harmonypay_checkout_data );
+		//console.log( 'HarmonyPay: Checkout data', $$.harmonypay_checkout_data );
 		$$.maybe_ens_address();
 		$$.clipboard_inputs();
 		$$.maybe_hide_woocommerce_order_overview();
@@ -85,7 +87,7 @@ var harmonypay_checkout_javascript = function( data )
 		$$.maybe_generate_payment_timer();
 		$$.$payment_buttons.appendTo( $$.$online_pay_box );
 		$$.maybe_metamask();
-		$$.maybe_onewallet();
+		$$.maybe_onewallet($$.harmonypay_network_mode);
 		$$.maybe_waves_link();
 		$$.maybe_browser_link();
 	}
@@ -258,10 +260,12 @@ var harmonypay_checkout_javascript = function( data )
 			@brief          Maybe generate a metamask payment link.
 			@since          2018-08-27 20:42:19
 	**/
-	$$.maybe_onewallet = function()
+	$$.maybe_onewallet = function(network_mode)
 	{
 		if ( $$.$online_pay_box.length < 1 )
 			return;
+
+		console.log(network_mode);
 
 		setTimeout( async function() {
 		console.log(window.onewallet);
@@ -270,17 +274,35 @@ var harmonypay_checkout_javascript = function( data )
 		if ( typeof window.onewallet === 'undefined' || !onewallet.isOneWallet )
 			return;
 
-		console.log(onewallet);
-
-		window.web3 = new window.HarmonyJs.HarmonyExtension(window.onewallet);//new Web3(ethereum);
-		window.web3.setProvider('https://api.s0.b.hmny.io');
-		window.web3.setShardID(0);
-		window.web3.setMessenger(new window.HarmonyNetwork.Messenger(window.web3.provider, window.HarmonyUtils.ChainType.Harmony, window.HarmonyUtils.ChainID.HmyTestnet));
-		window.web3.contracts.wallet = window.web3.wallet;
-
-		// The data must support metamask.
+		// The data must support onewallet.
 		if ( typeof $$.harmonypay_checkout_data.supports === 'undefined' || $$.harmonypay_checkout_data.supports === null )
 			return;
+		
+		var networkInfo = {
+			provider_http: '',
+			chain_id: '',
+			chain_type: '',
+			chain_shardid: 0,
+		}
+
+		if (network_mode === 'mainnet'){
+			networkInfo.provider_http = 'https://api.s0.t.hmny.io';
+			networkInfo.chain_id = window.HarmonyUtils.ChainID.HmyMainnet;
+			networkInfo.chain_type = window.HarmonyUtils.ChainType.Harmony;
+		} else {
+			networkInfo.provider_http = 'https://api.s0.b.hmny.io';
+			networkInfo.chain_id = window.HarmonyUtils.ChainID.HmyTestnet;
+			networkInfo.chain_type = window.HarmonyUtils.ChainType.Harmony;
+		}
+
+		window.web3 = new window.HarmonyJs.HarmonyExtension(window.onewallet);//new Web3(ethereum);
+		window.web3.setProvider(networkInfo.provider_http);
+		window.web3.setShardID(networkInfo.chain_shardid);
+		window.web3.setMessenger(new window.HarmonyNetwork.Messenger(window.web3.provider, networkInfo.chain_type, networkInfo.chain_id));
+		
+		window.web3.contracts.wallet = window.web3.wallet;
+
+		console.log(networkInfo);
 
 		var contractInstance = false;
 		if ( $$.harmonypay_checkout_data.supports.metamask_abi !== null )
@@ -302,10 +324,10 @@ var harmonypay_checkout_javascript = function( data )
 
 		if ( typeof window.HarmonyJs !== 'undefined' )
 		var harmony = await window.HarmonyJs.Harmony(    
-				'https://api.s0.b.hmny.io',
+				networkInfo.provider_http,
 			{
-				chainType: window.HarmonyUtils.ChainType.Harmony,
-				chainId: window.HarmonyUtils.ChainID.HmyTestnet,
+				chainType: networkInfo.chain_type,
+				chainId: networkInfo.chain_id,
 			});
 
 		$$.$onewallet.click( async function()
@@ -336,8 +358,8 @@ var harmonypay_checkout_javascript = function( data )
 					from: new window.HarmonyCrypto.HarmonyAddress(fromAddress).checksum,
 					to: new window.HarmonyCrypto.HarmonyAddress(toAddress).checksum,
 					value: window.HarmonyUtils.Unit.One($$.harmonypay_checkout_data.amount).toHex(),
-					shardID: 0,
-					toShardID: 0,
+					shardID: networkInfo.chain_shardid,
+					toShardID: networkInfo.chain_shardid,
 					//nounce: _nounce.result,
 					gasPrice: new window.HarmonyUtils.Unit('1').asGwei().toWei(),
 					gasLimit: '250000'
