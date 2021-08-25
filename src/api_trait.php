@@ -68,4 +68,5 @@ trait api_trait
 	{
 		$this->api()->payments()->send( $post_id );
 	}
+	
 }

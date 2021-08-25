@@ -862,6 +862,7 @@ trait admin_trait
 			->trim()
 			->value( $this->get_site_option( 'gateway_api_url' ) );
 
+
 		$fs = $form->fieldset( 'fs_gateway_fees' );
 		// Label for fieldset
 		$fs->legend->label( __( 'Gateway fees', 'harmonypay' ) );
@@ -1042,7 +1043,7 @@ trait admin_trait
 		$this->add_action( 'wp_ajax_harmonypay_sort_wallets' );
 
 		// Display the expired warning?
-		$this->expired_license()->show();
+		//$this->expired_license()->show();
 	}
 
 	/**
@@ -1106,4 +1107,5 @@ trait admin_trait
 
 		$wallets->save();
 	}
+
 }

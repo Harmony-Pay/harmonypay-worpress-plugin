@@ -26,11 +26,15 @@ class WC_Gateway_HarmonyPay extends \WC_Payment_Gateway
 		if ( $this->get_option( 'send_new_order_email' ) == 'yes' )
 			add_action( 'woocommerce_checkout_order_processed', [ $this, 'woocommerce_checkout_order_processed' ], 20, 1 );
 
+		// Register http://example.com/wp-json/harmony-pay/v1/webhook
+		add_action('rest_api_init', [ $this, 'harmonypay_register_webhook_endpoint' ], 20, 2);
+
 		add_action( 'harmonypay_generate_checkout_javascript_data', [ $this, 'harmonypay_generate_checkout_javascript_data' ] );
 		add_action( 'woocommerce_email_before_order_table', [ $this, 'woocommerce_email_before_order_table' ], 10, 3 );
 		add_filter( 'woocommerce_gateway_icon', [ $this, 'woocommerce_gateway_icon' ], 10, 2 );
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'post_process_admin_options' ] );
 		add_action( 'woocommerce_thankyou_harmonypay', [ $this, 'woocommerce_thankyou_harmonypay' ] );
+
 	}
 
 	/**
@@ -48,6 +52,22 @@ class WC_Gateway_HarmonyPay extends \WC_Payment_Gateway
 			'type'        => 'checkbox',
 			'description' => '',
 			'default'     => 'no',
+		];
+		$r[ 'webhook_signature_secret' ] = [
+			'title' => __('Webhook Signature Secret', 'harmonypay'),
+			'type' => 'password',
+			'description' => 'Copy this URL: <code><strong>'.get_rest_url(null, 'harmony-pay/v1/webhook').'</strong></code><br/> to create a new webhook in <strong>HarmonyPay Dashboard</strong> and copy the signature secret to the above <strong>Webhook Signature Secret</strong> field.',
+			'default' => '',
+		];
+		$r[ 'capture_status' ] = [
+			'title' => __('Order Status when Payment Captured', 'harmonypay'),
+			'type' => 'select',
+			'description' => __('When payment is captured and this server received the Webhook from HarmonyPay server, the status of orders that you would like to update to.'),
+			'options' => array(
+				'processing' => 'Processing',
+				'completed' => 'Completed',
+			),
+			'default' => 'processing',
 		];
 		$r[ 'test_mode' ] = [
 			'title'       => __( 'Test mode', 'harmonypay' ),
@@ -520,5 +540,130 @@ class WC_Gateway_HarmonyPay extends \WC_Payment_Gateway
 			->trigger( $order_id );
 	}
 
+
+	/**
+	 * Process webhook
+	 *
+	 * @param array $request Options for the function.
+	 * @return boolean True or false based on success, or a WP_Error object.
+	 * @since 1.2.0
+	 */
+	public function hpc_process_webhook(WP_REST_Request $request)
+	{
+
+		$json = $request->get_json_params();
+		$event = $json['type'];
+
+		if ($event == 'payment.captured') {
+			// handle payment capture event from HarmonyPay server webhook
+			// if payment is captured (i.e. status = 'succeeded'), set woo order status to processing (or the status that merchant defined)			
+			$payment_status = $json['data']['object']['status'];
+			if ($payment_status == 'succeeded') {
+				$order_id = $json['data']['object']['order_id'];
+				$order = wc_get_order($order_id);
+				if (!is_null($order)) {
+
+					$payment_gateway_id = 'harmonypay';
+
+					// Get an instance of the WC_Payment_Gateways object
+					$payment_gateways = \WC_Payment_Gateways::instance();
+				
+					// Get the desired WC_Payment_Gateway object
+					$payment_gateway = $payment_gateways->payment_gateways()[$payment_gateway_id];
+
+					if ($payment_gateway->settings['capture_status'] == 'completed') {
+						return $order->update_status('completed');
+					} else {
+						return $order->update_status('processing');
+					}
+				}
+			}
+
+		} elseif ($event == 'payment.refund_requested') {
+
+			// find the woo order by payment_id, then add refund entry if not exist
+			$payment_id = $json['data']['object']['payment_id'];
+			$refund_id = $json['data']['object']['id'];
+			$refund_currency = $json['data']['object']['currency'];
+			$refund_amount = \harmonypay\thirdparty\CurrencyHelper::get_currency_in_unit($refund_currency, ((float) $json['data']['object']['amount']));
+			$refund_reason = $json['data']['object']['reason'] . ": " . $json['data']['object']['description'] . ", synchronized from HarmonyPay gateway ({$refund_id}).";
+
+			$orders = wc_get_orders(array('harmonypay_paymentId' => $payment_id));
+
+			if (count($orders) > 0) {
+				$metadata_found = false;
+				$order = $orders[0];
+				$order_id = $order->get_order_number();
+
+				foreach ($order->get_meta('harmonypay_refundId', false) as $metadata) {
+					foreach ($metadata->get_data() as $key => $value) {
+						if ($value == $refund_id) {
+							$metadata_found = true;
+							break;
+						}
+					}
+				}
+
+				if ($metadata_found) {
+					// refund entry already exist, skip
+					return true;
+				} else {
+					$args = array(
+						'amount'         => $refund_amount,
+						'order_id'       => $order_id,
+						'reason'         => $refund_reason,
+						'refund_payment' => false
+					);
+
+					$refund = wc_create_refund($args);
+					$order->add_meta_data('harmonypay_refundId', $refund_id, false);
+					$order->save_meta_data();
+					return true;
+				}
+			}
+
+		} elseif ($event == 'payment.created' || $event == 'payment.refund_transferred') {
+			// no need to handle
+		}
+
+		return false;
+	}
+
+	public function hpc_process_webhook_verify_signature(WP_REST_Request $request) {
+
+		$webhook_signature  = $request->get_header('HarmonyPay-Signature');
+		$body = $request->get_body();
+
+		if(empty($webhook_signature) || empty($body)) {
+			return false;
+		}
+
+		$payment_gateway_id = 'harmonypay';
+
+		// Get an instance of the WC_Payment_Gateways object
+		$payment_gateways = \WC_Payment_Gateways::instance();
+
+		// Get the desired WC_Payment_Gateway object
+		$payment_gateway = $payment_gateways->payment_gateways()[$payment_gateway_id];
+		$webhook_signature_secret = $payment_gateway->settings['webhook_signature_secret'];
+		//$webhook_signature_secret = ($payment_gateway->settings['environment'] == 'production' ? $payment_gateway->settings['live_webhook_signature_secret'] : $payment_gateway->settings['test_webhook_signature_secret']);
+
+		if(empty($webhook_signature_secret)) {
+			return false;
+		}
+
+		return \harmonypay\thirdparty\CryptoSignature::verify_header($body, $webhook_signature, $webhook_signature_secret, null);
+	}
+
+	public function harmonypay_register_webhook_endpoint( $action )
+	{
+		register_rest_route('harmony-pay/v1', '/webhook', array(
+			'methods' => 'POST',
+			'callback' => [$this, 'hpc_process_webhook'],
+			'permission_callback' => [$this, 'hpc_process_webhook_verify_signature'],
+		));
+
+		return $action;
+	}
 
 }

@@ -1,13 +1,13 @@
 <?php
 /*
 Author:				@harmonypay
-Author Email:		contact@harmonypay
-Author URI:			https://harmonypay.com
+Author Email:		contact@harmonypay.one
+Author URI:			https://harmonypay.one
 Description:		Cryptocurrency payment gateway for WooCommerce and Easy Digital Downloads.
 Plugin Name:		HarmonyPay
-Plugin URI:			https://harmonypay.com
+Plugin URI:			https://harmonypay.one
 Text Domain:		harmonypay
-Version:			0.3
+Version:			0.4
 WC tested up to:	5.0.0
 */
 
@@ -59,7 +59,7 @@ namespace harmonypay
 			}
 
 			if ( ! defined( 'HARMONYPAY_API_URL' ) ) {
-				$gateway_api_url = $this->get_site_option( 'gateway_api_url', 'https://api.harmonypay.test/api/v1/' );
+				$gateway_api_url = $this->get_site_option( 'gateway_api_url', 'https://api.harmonypay.one/api/v1/' );
 				define('HARMONYPAY_API_URL', $gateway_api_url);
 			}
 
@@ -69,8 +69,7 @@ namespace harmonypay
 
 namespace
 {
-	define( 'HARMONYPAY_PLUGIN_VERSION', 0.3 );
-
+	define( 'HARMONYPAY_PLUGIN_VERSION', 0.4 );
 	/**
 		@brief		Return the instance of MCC.
 		@since		2014-10-18 14:48:37

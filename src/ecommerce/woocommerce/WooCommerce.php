@@ -749,4 +749,5 @@ class WooCommerce
 	{
 		echo '<style>.wc_payment_method #hrp_currency_id_field select#hrp_currency_id { width: 100%; }</style>';
 	}
+
 }
