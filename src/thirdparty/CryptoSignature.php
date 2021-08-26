@@ -65,13 +65,13 @@ class CryptoSignature
 
         $signedPayload = "{$timestamp}.{$payload}";
         $expectedSignature = self::compute_signature($signedPayload, $secret);
-
+        echo "Signed Payload: ".$signedPayload."<br/>";
         $signatureFound = false;
         foreach ($signatures as $signature) {
 
-             //echo "secret: ".$secret."<br/>";
-             //echo "expectedSignature: ".$expectedSignature."<br/>";
-             //echo "signature: ".$signature."<br/>";
+             echo "secret: ".$secret."<br/>";
+             echo "expectedSignature: ".$expectedSignature."<br/>";
+             echo "signature: ".$signature."<br/>";
 
             if (self::compare_signature($expectedSignature, $signature)) {
                 $signatureFound = true;

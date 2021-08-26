@@ -7,7 +7,7 @@ Description:		Cryptocurrency payment gateway for WooCommerce and Easy Digital Do
 Plugin Name:		HarmonyPay
 Plugin URI:			https://harmonypay.one
 Text Domain:		harmonypay
-Version:			0.4
+Version:			0.41
 WC tested up to:	5.0.0
 */
 
@@ -69,7 +69,7 @@ namespace harmonypay
 
 namespace
 {
-	define( 'HARMONYPAY_PLUGIN_VERSION', 0.4 );
+	define( 'HARMONYPAY_PLUGIN_VERSION', 0.41 );
 	/**
 		@brief		Return the instance of MCC.
 		@since		2014-10-18 14:48:37

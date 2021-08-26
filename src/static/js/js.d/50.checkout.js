@@ -86,7 +86,7 @@ var harmonypay_checkout_javascript = function( data )
 		$$.maybe_generate_qr_code();
 		$$.maybe_generate_payment_timer();
 		$$.$payment_buttons.appendTo( $$.$online_pay_box );
-		$$.maybe_metamask();
+		$$.maybe_metamask($$.harmonypay_network_mode);
 		$$.maybe_onewallet($$.harmonypay_network_mode);
 		$$.maybe_waves_link();
 		$$.maybe_browser_link();
@@ -307,7 +307,7 @@ var harmonypay_checkout_javascript = function( data )
 		var contractInstance = false;
 		if ( $$.harmonypay_checkout_data.supports.metamask_abi !== null )
 		{
-			contractInstance = window.web3.contracts.createContract(JSON.parse( $$.harmonypay_checkout_data.supports.metamask_abi ), $$.harmonypay_checkout_data.currency.contract);
+			contractInstance = window.web3.contracts.createContract(JSON.parse( $$.harmonypay_checkout_data.supports.metamask_abi ), network_mode === 'mainnet' ? $$.harmonypay_checkout_data.currency.contract : $$.harmonypay_checkout_data.currency.contract_testnet);
 			//new web3.eth.Contract( JSON.parse( $$.harmonypay_checkout_data.supports.metamask_abi ), $$.harmonypay_checkout_data.currency.contract );
             // var Contract = web3.eth.contract( JSON.parse( $$.harmonypay_checkout_data.supports.metamask_abi ) );
             // contractInstance = Contract.at( $$.harmonypay_checkout_data.currency.contract )
@@ -500,7 +500,7 @@ var harmonypay_checkout_javascript = function( data )
 			@brief          Maybe generate a metamask payment link.
 			@since          2018-08-27 20:42:19
 	**/
-	$$.maybe_metamask = function()
+	$$.maybe_metamask = function(network_mode)
 	{
 		if ( $$.$online_pay_box.length < 1 )
 			return;
@@ -520,7 +520,7 @@ var harmonypay_checkout_javascript = function( data )
 
 		if ( $$.harmonypay_checkout_data.supports.metamask_abi !== null)
 		{
-			contractInstance = new web3.eth.Contract( JSON.parse( $$.harmonypay_checkout_data.supports.metamask_abi ), $$.harmonypay_checkout_data.currency.contract );
+			contractInstance = new web3.eth.Contract( JSON.parse( $$.harmonypay_checkout_data.supports.metamask_abi ), network_mode === 'mainnet' ? $$.harmonypay_checkout_data.currency.contract : $$.harmonypay_checkout_data.currency.contract_testnet);
             // var Contract = web3.eth.contract( JSON.parse( $$.harmonypay_checkout_data.supports.metamask_abi ) );
             // contractInstance = Contract.at( $$.harmonypay_checkout_data.currency.contract )
 		}
