@@ -49,7 +49,7 @@ class Currency
 		}
 
 		$cryptocurrency_amount = $account->get_virtual_exchange_rate( $this->get_id() );
-		//HarmonyPay()->debug('currency : %s - %s - %s - %s', $currency, $usd, $cryptocurrency_amount, $this->get_id());
+		HarmonyPay()->debug('currency : %s - %s - %s - %s', $currency, $usd, $cryptocurrency_amount, $this->get_id());
 		$cryptocurrency_amount = $usd * $cryptocurrency_amount;
 
 		if ($cryptocurrency_amount > 1) {

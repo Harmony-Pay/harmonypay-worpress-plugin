@@ -219,6 +219,9 @@ trait admin_trait
 		{
 			$currencies = $this->currencies();
 			$exchange_rates = [];
+			// Get current shop currency.
+			$currency_code = get_woocommerce_currency();
+			$this->debug( 'Woocommerce Currency code: %s', $currency_code );
 			foreach( $wallets as $index => $wallet )
 			{
 				$id = $wallet->get_currency_id();
@@ -226,7 +229,8 @@ trait admin_trait
 					continue;
 				$currency = $currencies->get( $id );
 				if ( $currency )
-					$exchange_rates[ $id ] = sprintf( '1 USD = %s %s', $currency->convert( 'USD', 1 ), $id );
+					$exchange_rates[ $id ] = sprintf( '1 '.$currency_code.' = %s %s', $currency->convert( $currency_code , 1 ), $id );
+					//$exchange_rates[ $id ] = sprintf( '1 USD = %s %s', $currency->convert( 'USD', 1 ), $id );
 				else
 					$exchange_rates[ $id ] = sprintf( 'Currency %s is no longer available!', $id );
 			}
@@ -608,7 +612,7 @@ trait admin_trait
 			->trim()
 			->value( $wallet->get_address() );
 
-		$ens_address =( $currency->id == 'ETH' || $currency->id == 'ONE' || isset( $currency->erc20 ) );
+		/*$ens_address =( $currency->id == 'ETH' || $currency->id == 'ONE' || isset( $currency->erc20 ) );
 		if ( $ens_address )
 		{
 			$ens_address_input = $fs->text( 'ens_address' )
@@ -618,7 +622,7 @@ trait admin_trait
 				->size( 32 )
 				->trim()
 				->value( $wallet->get( 'ens_address' ) );
-		}
+		}*/
 
 		$wallet_enabled = $fs->checkbox( 'wallet_enabled' )
 			->checked( $wallet->enabled )
@@ -851,7 +855,7 @@ trait admin_trait
 		$fs->legend->label( __( 'HarmonyPay Gateway API URL', 'harmonypay' ) );
 
 		$fs->markup( 'm_gateway_api_url' )
-			->p( __( 'Define your HarmonyPay Gateway API URL here.<br/> eg. <strong>http://YOUR-DOMAIN-NAME/api/v1/</strong>', 'harmonypay' ) );
+			->p( __( 'Define your HarmonyPay Gateway API URL here.<br/> eg. <strong>http://YOUR-GATEWAY-SERVER-URL/api/v1/</strong>', 'harmonypay' ) );
 
 		$gateway_api_url = $fs->text( 'gateway_api_url' )
 			->description( __( 'Your HarmonyPay Gateway API URL.', 'harmonypay' ) )

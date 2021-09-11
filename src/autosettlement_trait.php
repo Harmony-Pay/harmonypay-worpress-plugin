@@ -182,7 +182,7 @@ trait autosettlement_trait
 		$autosettlement_text = sprintf(
 			// perhaps <a>we can ...you</a>
 			__( "Read the full %sfiat autosettlement documentation%s to learn more about this feature.", 'harmonypay' ),
-			'<a href="https://harmonypay.com/doc/autosettlements/" target="_blank">',
+			'<a href="https://harmonypay.one/doc/autosettlements/" target="_blank">',
 			'</a>'
 		);
 
@@ -225,7 +225,7 @@ trait autosettlement_trait
 					->value( 'Your Crypto.com balance will be checked every few minutes for an hour after a payment is detected for selected coins. If you have more than the minimum trade size, it will be market sold into the autosettlement currency of your choice.' );
 
 				$form->markup( 'm_cryptocom_api' )
-					->value( 'See how to <a href="https://harmonypay.com/doc/cryptocom/">get Crypto.com API keys</a> and set permissions.' );
+					->value( 'See how to <a href="https://harmonypay.one/doc/cryptocom/">get Crypto.com API keys</a> and set permissions.' );
 
 				$cryptocom_api_key = $form->text( 'cryptocom_api_key' )
 					->description( __( 'The API key of your Crypto.com account.', 'harmonypay' ) )

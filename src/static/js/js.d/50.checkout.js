@@ -46,7 +46,7 @@ var harmonypay_checkout_javascript = function( data )
 
 			if ( harmonypay_checkout_data[ 'paid' ] === false )
 			{
-				console.log($$.harmonypay_network_mode, harmonypay_checkout_data);
+				//console.log($$.harmonypay_network_mode, harmonypay_checkout_data);
 				document.location = url;
 				return;
 			}
@@ -79,6 +79,7 @@ var harmonypay_checkout_javascript = function( data )
 		$$.$div.addClass( 'harmonypay' );
 		$$.harmonypay_checkout_data = $$.extract_data( $( '#harmonypay_checkout_data' ) );
 		//console.log( 'HarmonyPay: Checkout data', $$.harmonypay_checkout_data );
+		$$.harmonypay_network_mode = $$.harmonypay_checkout_data.supports.network_mode;
 		$$.maybe_ens_address();
 		$$.clipboard_inputs();
 		$$.maybe_hide_woocommerce_order_overview();
@@ -86,8 +87,9 @@ var harmonypay_checkout_javascript = function( data )
 		$$.maybe_generate_qr_code();
 		$$.maybe_generate_payment_timer();
 		$$.$payment_buttons.appendTo( $$.$online_pay_box );
-		$$.maybe_metamask($$.harmonypay_network_mode);
+		$$.maybe_1wallet($$.harmonypay_network_mode);
 		$$.maybe_onewallet($$.harmonypay_network_mode);
+		$$.maybe_metamask($$.harmonypay_network_mode);
 		$$.maybe_waves_link();
 		$$.maybe_browser_link();
 	}
@@ -253,11 +255,61 @@ var harmonypay_checkout_javascript = function( data )
 	}
 
 
-	//this.isOneWallet = window.onewallet && window.onewallet.isOneWallet;
-	//this.onewallet = window.onewallet;
+		/**
+			@brief          Maybe generate a 1wallet on-chain payment link.
+			@since          2021-09-04 08:49:19
+	**/
+	$$.maybe_1wallet = function(network_mode)
+	{
+		if ( $$.$online_pay_box.length < 1 )
+			return;
+
+		// The data must support 1wallet.
+		if ( typeof $$.harmonypay_checkout_data.supports === 'undefined' || $$.harmonypay_checkout_data.supports === null )
+			return;
+
+
+		setTimeout( async function() {
+		$$.show_browser_link = false;
+
+		$$.$1wallet = $( '<div class="wallet1_payment"></div>' );
+		$$.$1wallet.appendTo( $$.$payment_buttons );
+
+		var baseUrl = 'https://1wallet.crazy.one/auth/pay';		
+		//caller: URL encoded string (e.g. Tip%20Jar), the name of the app that made the request.
+		var caller = 'HarmonyPay';
+		//callback: Base64 encoded string, the callback URL which the user would be redirected back to, after they made a decision on whether to approve or reject the request. Example: aHR0cHM6Ly9zdGFydHBhZ2UuY29t (decodes to https://startpage.com)
+		var callback = btoa(window.location.href);
+		//network: (optional) the network the app intends to use. Must be one of "harmony-mainnet" or "harmony-testnet". 
+		var network = network_mode === 'testnet' ? 'harmony-testnet' : 'harmony-mainnet';
+		//amount: the amount requested, in wei or otherwise lowest divisible unit (if a payment using a token is requested). Example: 1000000000000000000 (=1.0 ONE)
+		var amount = new window.HarmonyUtils.Unit($$.harmonypay_checkout_data.amount).asOne().toWeiString();
+		var currency = $$.harmonypay_checkout_data.currency;
+		//dest: the address you want the user to make payment to.
+		var dest = $$.harmonypay_checkout_data.to;
+		//from: (optional) the address of the user's wallet which the payment must be made from. If the user does not have this 1wallet address, the request cannot proceed (thus the user must reject the request). If this parameter is unspecified, the user would be allowed to pick any 1wallet address they own to complete the payment request.
+		var paymentUrl = baseUrl + '?caller=' + caller + '&callback=' + callback + '&amount=' + amount + '&dest=' + dest;
+		//'&network=' + network
+
+		$$.$1wallet.click( async function()
+		{
+			try {
+				var response = await fetch( paymentUrl );
+				console.log( '1wallet: on-chain ', response, dest, amount, currency );
+
+			} catch ( error ) {
+				// User denied account access...
+				console.log( error );
+			}
+
+		});
+
+		}, 600);
+	}
+
 
 	/**
-			@brief          Maybe generate a metamask payment link.
+			@brief          Maybe generate a onewallet payment link.
 			@since          2018-08-27 20:42:19
 	**/
 	$$.maybe_onewallet = function(network_mode)
@@ -265,12 +317,12 @@ var harmonypay_checkout_javascript = function( data )
 		if ( $$.$online_pay_box.length < 1 )
 			return;
 
-		console.log(network_mode);
+		//console.log(network_mode);
 
 		setTimeout( async function() {
-		console.log(window.onewallet);
+		//console.log(window.onewallet);
 
-		// web3 must be supported and metamask enabled.
+		// web3 must be supported and onewallet enabled.
 		if ( typeof window.onewallet === 'undefined' || !onewallet.isOneWallet )
 			return;
 
@@ -302,7 +354,7 @@ var harmonypay_checkout_javascript = function( data )
 		
 		window.web3.contracts.wallet = window.web3.wallet;
 
-		console.log(networkInfo);
+		//console.log(networkInfo);
 
 		var contractInstance = false;
 		if ( $$.harmonypay_checkout_data.supports.metamask_abi !== null )
@@ -345,7 +397,20 @@ var harmonypay_checkout_javascript = function( data )
                   })
                   .catch((err) => {
                     console.error(err);
+					return false;
                   });
+
+				if (account === false){
+					return false;
+				}
+
+
+				// check if address from is the same as the address to.
+				if ( fromAddress === toAddress ){
+					alert(`You cannot use the same wallet address to receive payments. Please use another wallet address.`);
+					await window.web3.logout();
+					return false;
+				}  
 
 				if ( contractInstance === false )
 				{  
@@ -370,7 +435,7 @@ var harmonypay_checkout_javascript = function( data )
 					signedTxn = await window.web3.wallet.signTransaction(txn); //or you can call window.onewallet.signTransaction(txn) directly
 					const [sentTxn, txnHash] = await signedTxn.sendTransaction();
 
-					console.log( "HRC20 / ONE parameters", sentTxn, txnHash );
+					//console.log( "HRC20 / ONE parameters", sentTxn, txnHash );
 				}
 				else
 				{
@@ -394,14 +459,14 @@ var harmonypay_checkout_javascript = function( data )
 						send_parameters[ 'gas' ] = metamask_gas.limit + '';
 					}
 
-					console.log(
+					/*console.log(
 						{
 							to: new window.HarmonyCrypto.getAddress($$.harmonypay_checkout_data.to).basicHex,
 							from: new window.HarmonyCrypto.HarmonyAddress(fromAddress).checksum,
 							gaslimit: '250000', //default gaslimit for Hrc20 transaction is '250000'
 							gasPrice: window.HarmonyUtils.numberToHex(new window.HarmonyUtils.Unit('1').asGwei().toWei()),
 						}
-					)
+					)*/
 					await contractInstance.methods
 					.transfer(new window.HarmonyCrypto.getAddress($$.harmonypay_checkout_data.to).basicHex, amount)
 					.send({
@@ -418,6 +483,8 @@ var harmonypay_checkout_javascript = function( data )
 					.on("confirmation", (confirmation) => {
 						if (confirmation !== "CONFIRMED") {
 						reject("Gas fee is too low or something is wrong."); //transaction failed
+						} else {
+							window.web3.logout(); //logout metamask or onewallet
 						}
 					})
 					.on("error", (error) => {
@@ -485,13 +552,14 @@ var harmonypay_checkout_javascript = function( data )
 
 			} catch (error) {
 				// User denied account access...
-				console.log( 'User denied account access', error );
+				console.log( error );
+				//alert(`User denied account access [ ${error} ]`);
 				await window.web3.logout(); 
 			}
 
 		} );
 
-		}, 300);
+		}, 600);
 
 	}
 
@@ -544,14 +612,43 @@ var harmonypay_checkout_javascript = function( data )
 					'from' : accounts[0],		// First available.
 				};
 
+				// check if address from is the same as the address to.
+				if (window.HarmonyCrypto.HarmonyAddress.isValidBech32($$.harmonypay_checkout_data.to) || 
+				window.HarmonyCrypto.HarmonyAddress.isValidBech32TestNet($$.harmonypay_checkout_data.to)){
+
+					if ( accounts[0] === window.HarmonyCrypto.fromBech32($$.harmonypay_checkout_data.to).toLowerCase() ){
+						alert(`You cannot use the same wallet address to receive payments. Please use another wallet address.`);
+						return false;
+					}
+
+				} else {
+					if ( accounts[0] === $$.harmonypay_checkout_data.to ){
+						alert(`You cannot use the same wallet address to receive payments. Please use another wallet address.`);
+						return false;
+					}
+
+				}
+
+				/*console.log( 'Metamask accounts', accounts[0], $$.harmonypay_checkout_data.to );  
+				console.log(
+					window.HarmonyCrypto.HarmonyAddress.isValidBech32($$.harmonypay_checkout_data.to), 
+					window.HarmonyCrypto.HarmonyAddress.isValidBech32TestNet($$.harmonypay_checkout_data.to), 
+					window.HarmonyCrypto.fromBech32($$.harmonypay_checkout_data.to).toLowerCase()
+					);*/
+
 				if ( contractInstance === false )
 				{
-					send_parameters[ 'to' ] = window.HarmonyCrypto.fromBech32($$.harmonypay_checkout_data.to);
+					if (window.HarmonyCrypto.HarmonyAddress.isValidBech32($$.harmonypay_checkout_data.to) || 
+					window.HarmonyCrypto.HarmonyAddress.isValidBech32TestNet($$.harmonypay_checkout_data.to)){
+						send_parameters[ 'to' ] = window.HarmonyCrypto.fromBech32($$.harmonypay_checkout_data.to).toLowerCase();
+					} else {
+						send_parameters[ 'to' ] = $$.harmonypay_checkout_data.to.toLowerCase();
+					}
 					send_parameters[ 'value' ] = window.HarmonyUtils.numberToHex(new window.HarmonyUtils.Unit($$.harmonypay_checkout_data.amount).asEther().toWei());
 					//send_parameters[ 'value' ] = web3.utils.toHex(
 					//	web3.utils.toWei( $$.harmonypay_checkout_data.amount, $$.harmonypay_checkout_data.supports.metamask_currency )
 					//);
-					console.log( 'ETH send parameters', send_parameters );
+					//console.log( 'ETH send parameters', send_parameters );
 					await window.ethereum.request(
 					{
 						method: 'eth_sendTransaction',
@@ -585,16 +682,17 @@ var harmonypay_checkout_javascript = function( data )
 						send_parameters[ 'gas' ] = metamask_gas.limit + '';
 					}
 
-					console.log( "ERC20 parameters", send_parameters );
+					//console.log( "ERC20 parameters", send_parameters );
 
 					contractInstance.methods
-						.transfer( window.HarmonyCrypto.fromBech32($$.harmonypay_checkout_data.to), amount )
+						.transfer( window.HarmonyCrypto.fromBech32($$.harmonypay_checkout_data.to).toLowerCase(), amount )
 						.send( send_parameters );
 				}
 
 			} catch (error) {
 				// User denied account access...
-				console.log( 'User denied account access', error );
+				console.error( error );
+				//alert(`User denied account access [ ${error} ]`);
 			}
 
 		} );
@@ -634,7 +732,7 @@ var harmonypay_checkout_javascript = function( data )
 		if ( typeof ( $$.harmonypay_checkout_data.waves ) !== 'undefined' )
 		{
 			add_waves = true;
-			console.log( 'HarmonyPay: Waves link', $$.harmonypay_checkout_data );
+			//console.log( 'HarmonyPay: Waves link', $$.harmonypay_checkout_data );
 			currency = $$.harmonypay_checkout_data.token_id;
 		}
 		if ( $$.data.currency_id == 'WAVES' )

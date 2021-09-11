@@ -9,7 +9,7 @@ module.exports = function(grunt) {
         			precision: 5,
     			},
       			files: {
-        			'src/static/css/mycryptocheckout.css': 'src/static/css/scss/mycryptocheckout.scss',
+        			'src/static/css/harmonypay.css': 'src/static/css/scss/harmonypay.scss',
       			}
     		}
 		},
@@ -22,7 +22,7 @@ module.exports = function(grunt) {
     			]
   			},
   			dist: {
-    			src: 'src/static/css/mycryptocheckout.css'
+    			src: 'src/static/css/harmonypay.css'
   			}
 		},
 		watch: {
